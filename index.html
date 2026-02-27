@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Coaching Dashboard</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        /* --- GLOBAL STYLES & ANDROID THEME --- */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+        :root {
+            --primary-color: #2196F3; /* Blue */
+            --primary-dark: #1976D2;
+            --accent-color: #FFC107; /* Amber */
+            --background-color: #f0f2f5;
+            --surface-color: #ffffff;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --divider-color: #BDBDBD;
+            --green: #4CAF50;
+            --red: #F44336;
+            --blue: #03A9F4; /* Light Blue for Advance */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            overflow: hidden; /* Prevent scrolling on the body */
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100%;
+            max-width: 450px; /* Mobile-first design */
+            margin: 0 auto;
+            background-color: var(--surface-color);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--background-color);
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+            visibility: hidden;
+        }
+
+        .page.active {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+
+        .page-header .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+        
+        .page-header .back-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .page-header h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .page-content {
+            padding: 20px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* --- UI COMPONENTS --- */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 15px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background-color: var(--surface-color);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+
+        .btn-google {
+            background-color: #FFF;
+            color: #757575;
+            border: 1px solid #DDD;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-google svg {
+            margin-right: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--divider-color);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .dashboard-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1);
+        }
+        
+        .dashboard-card svg {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+            fill: var(--primary-color);
+        }
+        
+        .dashboard-card span {
+            font-weight: 500;
+        }
+
+        /* --- SPECIFIC PAGE STYLES --- */
+        
+        /* Login Page */
+        #login-page {
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 30px;
+        }
+        
+        #login-page h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        #login-page p {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        /* Lists (Students, Exams, etc.) */
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid var(--divider-color);
+            cursor: pointer;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item-content {
+            flex-grow: 1;
+        }
+
+        .list-item-content p {
+            margin: 0;
+        }
+        
+        .list-item-content .item-title {
+            font-weight: 500;
+        }
+        
+        .list-item-content .item-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .fee-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .fee-status.due { background-color: var(--red); }
+        .fee-status.paid { background-color: var(--green); }
+        .fee-status.advance { background-color: var(--blue); }
+
+        /* Student Detail Page */
+        .detail-view p {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .detail-view strong {
+            color: var(--text-primary);
+            margin-right: 8px;
+        }
+        
+        .detail-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Chat System */
+        .chat-list-item {
+            position: relative;
+        }
+        .unread-dot {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            background-color: var(--red);
+            border-radius: 50%;
+            border: 2px solid var(--surface-color);
+        }
+
+        #chat-window .page-content {
+            padding: 10px;
+            display: flex;
+            flex-direction: column-reverse; /* Newest messages at the bottom */
+        }
+        
+        .message-container {
+            overflow-y: auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-bubble {
+            max-width: 75%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .chat-bubble.sent {
+            background-color: var(--primary-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-bubble.received {
+            background-color: #E0E0E0;
+            color: var(--text-primary);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-bubble img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 5px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--divider-color);
+            background-color: var(--surface-color);
+        }
+        
+        .chat-input-area input {
+            flex-grow: 1;
+            border: 1px solid var(--divider-color);
+            border-radius: 20px;
+            padding: 10px 15px;
+            margin-right: 10px;
+        }
+        
+        .chat-input-area button {
+            background: var(--primary-color);
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+        }
+
+        /* Exam Question Styling */
+        .question-block {
+            margin-bottom: 25px;
+        }
+        .question-block p {
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+        .objective-options label {
+            display: block;
+            padding: 12px;
+            border: 1px solid var(--divider-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .objective-options input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .objective-options input[type="radio"]:checked + span {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .objective-options.disabled label {
+            cursor: not-allowed;
+            background-color: #f9f9f9;
+        }
+
+        /* Result View Styling */
+        .answer-feedback.correct {
+            border-left: 4px solid var(--green);
+            padding-left: 10px;
+        }
+        .answer-feedback.incorrect {
+            border-left: 4px solid var(--red);
+            padding-left: 10px;
+        }
+        .answer-feedback .correct-answer {
+            color: var(--green);
+            font-weight: bold;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            transition: bottom 0.5s ease;
+        }
+
+        .toast.show {
+            bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- ===== PAGE: LOGIN ===== -->
+        <div id="login-page" class="page active">
+            <div style="text-align: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" height="60" viewBox="0 -960 960 960" width="60" fill="var(--primary-color)"><path d="M480-120 200-273v-407l280-153 280 153v407L480-120Zm0-84 200-110v-282L480-706 280-600v282l200 110Zm0-302L280-600l200-106 200 106-200 106ZM200-273v-407 407Zm280 84L280-400l200-106 200 106-200 106Zm0-218L280-600l200-106 200 106-200 106Zm0 0L280-600l200-106 200 106-200 106Z"/></svg>
+                <h1>Welcome</h1>
+                <p>Your Digital Coaching Companion</p>
+            </div>
+            <div id="login-form-container" style="width: 100%;">
+                <!-- Login options will be dynamically inserted here -->
+            </div>
+            <div id="login-options" style="width: 100%;">
+                <button class="btn btn-primary" onclick="app.ui.showLogin('teacher')">Teacher Login</button>
+                <button class="btn btn-secondary" onclick="app.ui.showLogin('student')">Student Login</button>
+                <button class="btn btn-google" onclick="app.auth.continueWithGoogle()">
+                    <svg height="20" viewBox="0 0 20 20" width="20"><path d="M19.6 10.2c0-.6-.1-1.2-.2-1.8H10.2v3.5h5.3c-.2 1.2-.9 2.2-2.1 2.9v2.3h2.9c1.7-1.6 2.7-4 2.7-6.9z" fill="#4285F4"></path><path d="M10.2 20c2.8 0 5.1-1 6.8-2.6l-2.9-2.3c-.9.6-2.1.9-3.9.9-3 0-5.5-2-6.4-4.7H.8v2.4C2.5 17.5 6 20 10.2 20z" fill="#34A853"></path><path d="M3.7 12.1c-.2-.6-.3-1.3-.3-1.9s.1-1.3.3-1.9V5.9H.8C.3 7.1 0 8.5 0 10.2s.3 3.1.8 4.3l2.9-2.4z" fill="#FBBC05"></path><path d="M10.2 3.8c1.5 0 2.9.5 3.9 1.5l2.6-2.6C15.3 1 12.9 0 10.2 0 6 0 2.5 2.5.8 5.9L3.7 8c.9-2.7 3.4-4.2 6.5-4.2z" fill="#EA4335"></path></svg>
+                Continue with Google
+            </button>
+            </div>
+        </div>
+
+        <!-- ===== PAGE: TEACHER DASHBOARD ===== -->
+        <div id="teacher-dashboard" class="page">
+            <div class="page-header">
+                <h2 id="teacher-greeting"></h2>
+            </div>
+            <div class="page-content">
+                <div class="dashboard-grid">
+                    <div class="card dashboard-card" onclick="app.ui.showPage('add-student-page')">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        <span>Add Student</span>
+                    </div>
+                    <div class="card dashboard-card" onclick="app.teacher.renderStudentList()">
+                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                        <span>All Students</span>
+                    </div>
+                    <div class="card dashboard-card" onclick="app.teacher.renderFeeManagement()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                        <span>Fee Management</span>
+                    </div>
+                    <div class="card dashboard-card" onclick="app.chat.renderChatList('teacher')">
+                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                        <span>Chat</span>
+                    </div>
+                    <div class="card dashboard-card" onclick="app.teacher.renderExamList()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm8-7h-2v2h-2v-2H8v-2h2v-2h2v2h2v2z"/></svg>
+                        <span>Exam Manager</span>
+                    </div>
+                    <div class="card dashboard-card" onclick="app.teacher.renderResultsList()">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                        <span>Check Results</span>
+                    </div>
+                </div>
+                 <button class="btn btn-secondary" onclick="app.auth.logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- ===== PAGE: STUDENT DASHBOARD ===== -->
+        <div id="student-dashboard" class="page">
+            <div class="page-header">
+                <h2 id="student-greeting"></h2>
+            </div>
+            <div class="page-content">
+                <div class="card">
+                    <h3>Your Profile</h3>
+                    <div id="student-profile-summary"></div>
+                </div>
+                <button class="btn btn-primary" onclick="app.student.renderFeeStatus()">See Your Tuition Fee</button>
+                <button class="btn btn-primary" onclick="app.student.renderAvailableTests()">SI Test</button>
+                <button class="btn btn-primary" onclick="app.chat.renderChatList('student')">Chat with Teacher</button>
+                <button class="btn btn-secondary" onclick="app.auth.logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- ===== UNIVERSAL PAGES (Used by both) ===== -->
+        
+        <!-- Add/Edit Student Page -->
+        <div id="add-student-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </button>
+                <h2 id="student-form-title">Add New Student</h2>
+            </div>
+            <div class="page-content">
+                <form id="student-form">
+                    <input type="hidden" id="student-id-input">
+                    <div class="form-group">
+                        <label for="student-name">Student Name</label>
+                        <input type="text" id="student-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="father-name">Father’s Name</label>
+                        <input type="text" id="father-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="mother-name">Mother’s Name</label>
+                        <input type="text" id="mother-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="location">Location (Village/City)</label>
+                        <input type="text" id="location" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tuition-fee">Tuition Fee (Monthly)</label>
+                        <input type="number" id="tuition-fee" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="admission-date">Admission Date</label>
+                        <input type="date" id="admission-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="mobile-number">Mobile Number</label>
+                        <input type="tel" id="mobile-number" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-email">Optional Email</label>
+                        <input type="email" id="student-email">
+                    </div>
+                    <div class="form-group" id="password-display-area" style="display:none;">
+                        <label>Auto-Generated Password</label>
+                        <input type="text" id="student-password-display" readonly>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="student-form-submit-btn">Add Student</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Student List Page -->
+        <div id="student-list-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>All Students</h2>
+            </div>
+            <div class="page-content" id="student-list-container">
+                <!-- Student list items will be injected here -->
+            </div>
+        </div>
+
+        <!-- Student Detail Page -->
+        <div id="student-detail-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2 id="student-detail-name"></h2>
+            </div>
+            <div class="page-content">
+                <div class="card detail-view" id="student-detail-content">
+                    <!-- Details will be injected here -->
+                </div>
+                <div class="detail-actions">
+                    <button class="btn btn-primary" id="student-call-btn">Call</button>
+                    <button class="btn btn-secondary" id="student-update-btn">Update</button>
+                </div>
+                <button class="btn" style="background-color: var(--red); color: white;" id="student-delete-btn">Delete Student</button>
+            </div>
+        </div>
+
+        <!-- Fee Management Page -->
+        <div id="fee-management-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Tuition Fee Management</h2>
+            </div>
+            <div class="page-content">
+                <div class="card">
+                    <p><strong>Total Due:</strong> <span id="total-due-fees">₹0</span></p>
+                </div>
+                <div id="fee-student-list">
+                    <!-- Student fee statuses will be injected here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Student Fee Status Page -->
+        <div id="student-fee-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Your Fee Status</h2>
+            </div>
+            <div class="page-content" id="student-fee-details">
+                <!-- Student's personal fee history will be injected here -->
+            </div>
+        </div>
+
+        <!-- Chat List Page -->
+        <div id="chat-list-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2 id="chat-list-title"></h2>
+            </div>
+            <div class="page-content" id="chat-list-container">
+                <!-- Chat list will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Chat Window Page -->
+        <div id="chat-window" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2 id="chat-window-title">Chat</h2>
+            </div>
+            <div class="page-content">
+                <div class="message-container" id="message-container">
+                    <!-- Messages will be injected here -->
+                </div>
+            </div>
+            <div class="chat-input-area" id="chat-input-area">
+                <!-- Chat input will be injected here -->
+            </div>
+        </div>
+        
+        <!-- Exam List Page (Teacher) -->
+        <div id="exam-list-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Exam Manager</h2>
+            </div>
+            <div class="page-content">
+                <button class="btn btn-primary" onclick="app.ui.showPage('create-exam-page')">Create New Exam</button>
+                <h3 style="margin-top: 20px; color: var(--text-secondary);">Existing Exams</h3>
+                <div id="exam-list-container"></div>
+            </div>
+        </div>
+
+        <!-- Create Exam Page (Teacher) -->
+        <div id="create-exam-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Create Exam</h2>
+            </div>
+            <div class="page-content">
+                <form id="create-exam-form">
+                    <div class="form-group"><label>Exam Title/Subject</label><input type="text" id="exam-title" required></div>
+                    <div class="form-group"><label>Date</label><input type="date" id="exam-date" required></div>
+                    <div class="form-group"><label>Start Time</label><input type="time" id="exam-start-time" required></div>
+                    <div class="form-group"><label>End Time</label><input type="time" id="exam-end-time" required></div>
+                    <button type="submit" class="btn btn-primary">Next: Add Questions</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Add Questions Page (Teacher) -->
+        <div id="add-questions-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Add Questions</h2>
+            </div>
+            <div class="page-content">
+                <div id="current-questions-list"></div>
+                <div class="card" id="add-question-form-container">
+                    <!-- Form will be injected by JS -->
+                </div>
+                <div class="detail-actions">
+                    <button class="btn btn-primary" onclick="app.teacher.showQuestionForm('objective')">Add Objective</button>
+                    <button class="btn btn-secondary" onclick="app.teacher.showQuestionForm('subjective')">Add Subjective</button>
+                </div>
+                <button class="btn" style="background-color: var(--green); color: white; margin-top: 20px;" onclick="app.teacher.finishExamCreation()">Finish & Release Exam</button>
+            </div>
+        </div>
+
+        <!-- Available Tests Page (Student) -->
+        <div id="available-tests-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Available Tests</h2>
+            </div>
+            <div class="page-content" id="available-tests-container"></div>
+        </div>
+
+        <!-- Take Exam Page (Student) -->
+        <div id="take-exam-page" class="page">
+            <div class="page-header">
+                <h2 id="take-exam-title"></h2>
+            </div>
+            <div class="page-content">
+                <div class="card" style="margin-bottom: 20px;">
+                    <p><strong>Time Remaining:</strong> <span id="exam-timer">--:--</span></p>
+                </div>
+                <form id="exam-paper-form">
+                    <!-- Questions will be injected here -->
+                    <button type="submit" class="btn btn-primary">Submit Exam</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Results List Page (Teacher) -->
+        <div id="results-list-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2>Check Results</h2>
+            </div>
+            <div class="page-content" id="results-exam-list-container"></div>
+        </div>
+
+        <!-- Exam Results Page (Teacher) -->
+        <div id="exam-results-page" class="page">
+             <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2 id="exam-results-title"></h2>
+            </div>
+            <div class="page-content" id="exam-results-container"></div>
+        </div>
+        
+        <!-- Student Answer Sheet Page (Teacher) -->
+        <div id="student-answer-sheet-page" class="page">
+            <div class="page-header">
+                <button class="back-btn" onclick="app.ui.goBack()"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                <h2 id="answer-sheet-title"></h2>
+            </div>
+            <div class="page-content" id="answer-sheet-container"></div>
+        </div>
+
+    </div> <!-- end .app-container -->
+
+    <div id="toast" class="toast"></div>
+
+<script>
+// Wait for the DOM to be fully loaded before running the app script
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- START: FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyA24zrmJpZuTm6HWE-JTsbeBlWRkeMWbf0",
+        authDomain: "tuition-app-a455a.firebaseapp.com",
+        databaseURL: "https://tuition-app-a455a-default-rtdb.firebaseio.com",
+        projectId: "tuition-app-a455a",
+        storageBucket: "tuition-app-a455a.firebasestorage.app",
+        messagingSenderId: "576410214806",
+        appId: "1:576410214806:web:f672909c00154d95cefdb7"
+    };
+    // --- END: FIREBASE CONFIGURATION ---
+
+    const app = {
+        // --- STATE MANAGEMENT ---
+        state: {
+            currentUser: null, // { id, type, name }
+            currentPage: 'login-page',
+            pageHistory: [],
+            currentExamId: null, // For exam creation flow
+            currentChatId: null, // For chat window
+            activeChatListener: null, // To store the active Firebase listener
+        },
+
+        // --- DATABASE (Firebase Realtime Database) ---
+        db: {
+            data: {}, // Local cache of the database
+            database: null, // Firebase database instance
+            
+            init() {
+                return new Promise((resolve, reject) => {
+                    try {
+                        firebase.initializeApp(firebaseConfig);
+                        this.database = firebase.database();
+                        
+                        // Fetch the entire database to populate the local cache
+                        this.database.ref('/').once('value', (snapshot) => {
+                            const dbData = snapshot.val();
+                            
+                            // If DB is empty, initialize it with a default structure
+                            if (!dbData) {
+                                console.log("Firebase is empty. Initializing with default structure.");
+                                this.data = {
+                                    teachers: {
+                                        'selesh': { name: 'Selesh Sir', pass: '@ss620631' },
+                                        'parveen': { name: 'Parveen Sir', pass: '@pp620370' }
+                                    },
+                                    students: {}, exams: {}, chats: {}, googleUsers: {}
+                                };
+                                // Write this initial data back to Firebase
+                                this.database.ref('/').set(this.data);
+                            } else {
+                                // Otherwise, use the data from Firebase
+                                this.data = {
+                                    teachers: dbData.teachers || { 'selesh': { name: 'Selesh Sir', pass: '@ss620631' }, 'parveen': { name: 'Parveen Sir', pass: '@pp620370' } },
+                                    students: dbData.students || {},
+                                    exams: dbData.exams || {},
+                                    chats: dbData.chats || {},
+                                    googleUsers: dbData.googleUsers || {}
+                                };
+                            }
+                            console.log("Firebase data loaded into local cache.");
+                            resolve();
+                        });
+                    } catch (error) {
+                        console.error("Firebase initialization failed:", error);
+                        reject(error);
+                    }
+                });
+            },
+            
+            get(key) {
+                // Reads from the local cache for speed
+                return this.data[key];
+            },
+
+            async set(key, value) {
+                // Updates local cache immediately for instant UI response
+                this.data[key] = value;
+                try {
+                    // Writes the data to Firebase
+                    await this.database.ref(key).set(value);
+                } catch (error) {
+                    console.error(`Failed to write to Firebase at path: ${key}`, error);
+                    // Optional: Add logic to handle write failures
+                }
+            }
+        },
+
+        // --- INITIALIZATION ---
+        async init() {
+            try {
+                await this.db.init(); // Wait for Firebase to load
+                this.auth.checkForGoogleLogin(); // This is a simulated function
+                this.utils.autoCleanExams();
+                
+                // Attach global event listeners
+                document.getElementById('student-form').addEventListener('submit', this.teacher.handleStudentFormSubmit);
+                document.getElementById('create-exam-form').addEventListener('submit', this.teacher.handleCreateExamForm);
+                document.getElementById('exam-paper-form').addEventListener('submit', this.student.submitExam);
+
+                console.log("App Initialized. Current DB cache:", this.db.data);
+            } catch (error) {
+                alert("Could not connect to the database. Please check your internet connection and Firebase configuration.");
+            }
+        },
+
+        // --- UI MANAGEMENT ---
+        ui: {
+            showPage(pageId) {
+                if (app.state.currentPage === pageId) return;
+
+                const currentPageEl = document.getElementById(app.state.currentPage);
+                const newPageEl = document.getElementById(pageId);
+
+                if (currentPageEl) {
+                    currentPageEl.classList.remove('active');
+                }
+                if (newPageEl) {
+                    if (pageId !== 'login-page') {
+                        app.state.pageHistory.push(app.state.currentPage);
+                    }
+                    app.state.currentPage = pageId;
+                    newPageEl.classList.add('active');
+                    newPageEl.querySelector('.page-content')?.scrollTo(0, 0);
+                }
+            },
+            goBack() {
+                // Special handling for detaching Firebase listener when leaving chat
+                if (app.state.currentPage === 'chat-window' && app.state.activeChatListener) {
+                    app.chat.detachListener();
+                }
+                
+                const lastPage = app.state.pageHistory.pop();
+                if (lastPage) {
+                    document.getElementById(app.state.currentPage).classList.remove('active');
+                    document.getElementById(lastPage).classList.add('active');
+                    app.state.currentPage = lastPage;
+                }
+            },
+            showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            },
+            showLogin(type) {
+                const container = document.getElementById('login-form-container');
+                document.getElementById('login-options').style.display = 'none';
+                let formHTML = '';
+                if (type === 'teacher') {
+                    formHTML = `
+                        <h3>Teacher Login</h3>
+                        <form id="teacher-login-form">
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="teacher-password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </form>
+                    `;
+                } else { // student
+                    formHTML = `
+                        <h3>Student Login</h3>
+                        <form id="student-login-form">
+                            <div class="form-group">
+                                <label>Your Password / ID</label>
+                                <input type="password" id="student-password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </form>
+                    `;
+                }
+                formHTML += `<button class="btn btn-secondary" onclick="app.ui.resetLogin()">Back</button>`;
+                container.innerHTML = formHTML;
+
+                if (type === 'teacher') {
+                    document.getElementById('teacher-login-form').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const pass = document.getElementById('teacher-password').value;
+                        app.auth.loginTeacher(pass);
+                    });
+                } else {
+                    document.getElementById('student-login-form').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const pass = document.getElementById('student-password').value;
+                        app.auth.loginStudent(pass);
+                    });
+                }
+            },
+            resetLogin() {
+                document.getElementById('login-form-container').innerHTML = '';
+                document.getElementById('login-options').style.display = 'block';
+            }
+        },
+
+        // --- AUTHENTICATION ---
+        auth: {
+            loginTeacher(password) {
+                const teachers = app.db.get('teachers');
+                let teacherId = null;
+                if (password === teachers.selesh.pass) teacherId = 'selesh';
+                if (password === teachers.parveen.pass) teacherId = 'parveen';
+
+                if (teacherId) {
+                    app.state.currentUser = { id: teacherId, type: 'teacher', name: teachers[teacherId].name };
+                    document.getElementById('teacher-greeting').textContent = `Namaste ${teachers[teacherId].name}`;
+                    app.ui.showPage('teacher-dashboard');
+                } else {
+                    app.ui.showToast('Invalid teacher password.');
+                }
+            },
+            loginStudent(password) {
+                const students = app.db.get('students') || {};
+                const student = Object.values(students).find(s => s.password === password);
+                if (student) {
+                    app.state.currentUser = { id: student.id, type: 'student', name: student.name };
+                    app.student.loadDashboard();
+                    app.ui.showPage('student-dashboard');
+                } else {
+                    app.ui.showToast('Invalid student ID/password.');
+                }
+            },
+            async continueWithGoogle() {
+                const email = prompt("Simulating Google Login. Please enter your email:");
+                if (!email) return;
+
+                const googleUsers = app.db.get('googleUsers') || {};
+                if (googleUsers[email]) {
+                    const userData = googleUsers[email];
+                    if (userData.type === 'student') {
+                        const student = app.db.get('students')[userData.id];
+                        if(student) {
+                            app.state.currentUser = { id: student.id, type: 'student', name: student.name };
+                            app.student.loadDashboard();
+                            app.ui.showPage('student-dashboard');
+                            app.ui.showToast(`Welcome back, ${student.name}!`);
+                        } else {
+                            app.ui.showToast('Associated student account not found.');
+                        }
+                    }
+                } else {
+                    const studentPassword = prompt("First time with Google. Enter your Student Password/ID to link your account:");
+                    const students = app.db.get('students');
+                    const student = Object.values(students).find(s => s.password === studentPassword);
+                    if (student) {
+                        student.email = email;
+                        googleUsers[email] = { type: 'student', id: student.id };
+                        await app.db.set('students', students);
+                        await app.db.set('googleUsers', googleUsers);
+                        app.state.currentUser = { id: student.id, type: 'student', name: student.name };
+                        app.student.loadDashboard();
+                        app.ui.showPage('student-dashboard');
+                        app.ui.showToast('Google account linked successfully!');
+                    } else {
+                        app.ui.showToast('Student ID not found. Account not linked.');
+                    }
+                }
+            },
+            checkForGoogleLogin() {
+                // In a real app, you'd check for a saved token.
+                // For this simulation, we always show the login page on refresh.
+            },
+            logout() {
+                app.state.currentUser = null;
+                app.state.pageHistory = [];
+                app.ui.resetLogin();
+                app.ui.showPage('login-page');
+            }
+        },
+        
+        // --- TEACHER-SPECIFIC FUNCTIONALITY ---
+        teacher: {
+            renderStudentList() {
+                const students = app.db.get('students') || {};
+                const container = document.getElementById('student-list-container');
+                container.innerHTML = '';
+                if (Object.keys(students).length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No students added yet.</p>';
+                    app.ui.showPage('student-list-page');
+                    return;
+                }
+                const studentArray = Object.values(students).sort((a,b) => a.name.localeCompare(b.name));
+                studentArray.forEach(s => {
+                    const item = document.createElement('div');
+                    item.className = 'list-item card';
+                    item.innerHTML = `
+                        <div class="list-item-content">
+                            <p class="item-title">${s.name}</p>
+                            <p class="item-subtitle">${s.fatherName}</p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="var(--text-secondary)"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                    `;
+                    item.onclick = () => this.renderStudentDetail(s.id);
+                    container.appendChild(item);
+                });
+                app.ui.showPage('student-list-page');
+            },
+            renderStudentDetail(studentId) {
+                const student = app.db.get('students')[studentId];
+                if (!student) return;
+                
+                document.getElementById('student-detail-name').textContent = student.name;
+                const content = document.getElementById('student-detail-content');
+                content.innerHTML = `
+                    <p><strong>Father's Name:</strong> ${student.fatherName}</p>
+                    <p><strong>Mother's Name:</strong> ${student.motherName}</p>
+                    <p><strong>Location:</strong> ${student.location}</p>
+                    <p><strong>Mobile:</strong> ${student.mobile}</p>
+                    <p><strong>Email:</strong> ${student.email || 'Not provided'}</p>
+                    <p><strong>Admission:</strong> ${student.admissionDate}</p>
+                    <p><strong>Tuition Fee:</strong> ₹${student.fee}</p>
+                    <p><strong>Password:</strong> ${student.password}</p>
+                `;
+                
+                document.getElementById('student-call-btn').onclick = () => { window.location.href = `tel:${student.mobile}`; };
+                document.getElementById('student-update-btn').onclick = () => this.showUpdateStudentForm(studentId);
+                document.getElementById('student-delete-btn').onclick = () => this.deleteStudent(studentId);
+                
+                app.ui.showPage('student-detail-page');
+            },
+            showUpdateStudentForm(studentId) {
+                const student = app.db.get('students')[studentId];
+                document.getElementById('student-form-title').textContent = 'Update Student';
+                document.getElementById('student-form-submit-btn').textContent = 'Save Changes';
+                
+                document.getElementById('student-id-input').value = student.id;
+                document.getElementById('student-name').value = student.name;
+                document.getElementById('father-name').value = student.fatherName;
+                document.getElementById('mother-name').value = student.motherName;
+                document.getElementById('location').value = student.location;
+                document.getElementById('tuition-fee').value = student.fee;
+                document.getElementById('admission-date').value = student.admissionDate;
+                document.getElementById('mobile-number').value = student.mobile;
+                document.getElementById('student-email').value = student.email || '';
+                
+                document.getElementById('password-display-area').style.display = 'block';
+                document.getElementById('student-password-display').value = student.password;
+                
+                app.ui.showPage('add-student-page');
+            },
+            async handleStudentFormSubmit(e) {
+                e.preventDefault();
+                const studentId = document.getElementById('student-id-input').value;
+                const students = app.db.get('students');
+                
+                const studentData = {
+                    name: document.getElementById('student-name').value,
+                    fatherName: document.getElementById('father-name').value,
+                    motherName: document.getElementById('mother-name').value,
+                    location: document.getElementById('location').value,
+                    fee: parseFloat(document.getElementById('tuition-fee').value),
+                    admissionDate: document.getElementById('admission-date').value,
+                    mobile: document.getElementById('mobile-number').value,
+                    email: document.getElementById('student-email').value
+                };
+
+                if(studentId) {
+                    const existingStudent = students[studentId];
+                    students[studentId] = { ...existingStudent, ...studentData };
+                    app.ui.showToast('Student updated successfully!');
+                } else {
+                    studentData.id = `S${Date.now()}`;
+                    studentData.password = app.utils.generatePassword();
+                    studentData.fees = {};
+                    students[studentData.id] = studentData;
+                    app.ui.showToast('Student added successfully!');
+                }
+                
+                await app.db.set('students', students);
+                document.getElementById('student-form').reset();
+                document.getElementById('student-id-input').value = '';
+                document.getElementById('student-form-title').textContent = 'Add New Student';
+                document.getElementById('student-form-submit-btn').textContent = 'Add Student';
+                document.getElementById('password-display-area').style.display = 'none';
+
+                app.teacher.renderStudentList();
+            },
+            async deleteStudent(studentId) {
+                if(confirm("Are you sure you want to delete this student? This action cannot be undone.")) {
+                    const students = app.db.get('students');
+                    delete students[studentId];
+                    await app.db.set('students', students);
+                    app.ui.showToast("Student deleted.");
+                    this.renderStudentList();
+                }
+            },
+            renderFeeManagement() {
+                const students = app.db.get('students') || {};
+                const container = document.getElementById('fee-student-list');
+                container.innerHTML = '';
+                app.utils.updateAllStudentFees(); 
+                
+                let totalDue = 0;
+                
+                const studentArray = Object.values(students).sort((a,b) => a.name.localeCompare(b.name));
+
+                studentArray.forEach(s => {
+                    const currentMonthKey = app.utils.getCurrentMonthKey();
+                    const status = (s.fees && s.fees[currentMonthKey]) || 'due';
+
+                    const item = document.createElement('div');
+                    item.className = 'card';
+                    item.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <p class="item-title">${s.name}</p>
+                                <p class="item-subtitle">${s.fatherName}</p>
+                            </div>
+                            <span class="fee-status ${status}">${status.toUpperCase()}</span>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" style="background-color: var(--green); color: white; flex:1;" onclick="app.teacher.updateFeeStatus('${s.id}', 'paid')">Paid</button>
+                            <button class="btn" style="background-color: var(--red); color: white; flex:1;" onclick="app.teacher.updateFeeStatus('${s.id}', 'due')">Due</button>
+                            <button class="btn" style="background-color: var(--blue); color: white; flex:1;" onclick="app.teacher.updateFeeStatus('${s.id}', 'advance')">Advance</button>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                    
+                    if (s.fees) {
+                        Object.entries(s.fees).forEach(([month, status]) => {
+                            if (status === 'due') {
+                                totalDue += s.fee;
+                            }
+                        });
+                    }
+                });
+                document.getElementById('total-due-fees').textContent = `₹${totalDue}`;
+                app.ui.showPage('fee-management-page');
+            },
+            async updateFeeStatus(studentId, newStatus) {
+                const students = app.db.get('students');
+                const student = students[studentId];
+                const currentMonthKey = app.utils.getCurrentMonthKey();
+                if(!student.fees) student.fees = {};
+                
+                student.fees[currentMonthKey] = newStatus;
+                await app.db.set('students', students);
+                this.renderFeeManagement();
+                app.ui.showToast(`${student.name}'s fee status updated to ${newStatus}.`);
+            },
+            // Exam functions (add, update, delete) are largely the same, but now use `await app.db.set`.
+            renderExamList() {
+                const exams = app.db.get('exams') || {};
+                const container = document.getElementById('exam-list-container');
+                container.innerHTML = '';
+                if(Object.keys(exams).length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No exams created yet.</p>';
+                } else {
+                    const examArray = Object.values(exams).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    examArray.forEach(exam => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item card';
+                        item.innerHTML = `
+                            <div>
+                                <p class="item-title">${exam.title}</p>
+                                <p class="item-subtitle">Date: ${new Date(exam.startTime).toLocaleDateString()} | Questions: ${(exam.questions || []).length}</p>
+                            </div>
+                        `;
+                        item.onclick = () => this.showAddQuestionsPage(exam.id);
+                        container.appendChild(item);
+                    });
+                }
+                app.ui.showPage('exam-list-page');
+            },
+            async handleCreateExamForm(e) {
+                e.preventDefault();
+                const title = document.getElementById('exam-title').value;
+                const date = document.getElementById('exam-date').value;
+                const startTimeStr = document.getElementById('exam-start-time').value;
+                const endTimeStr = document.getElementById('exam-end-time').value;
+
+                const startTime = new Date(`${date}T${startTimeStr}`).getTime();
+                const endTime = new Date(`${date}T${endTimeStr}`).getTime();
+                
+                const examId = `E${Date.now()}`;
+                const exams = app.db.get('exams');
+                exams[examId] = {
+                    id: examId,
+                    title,
+                    startTime,
+                    endTime,
+                    createdAt: Date.now(),
+                    questions: [],
+                    submissions: {}
+                };
+                await app.db.set('exams', exams);
+                this.showAddQuestionsPage(examId);
+            },
+            showAddQuestionsPage(examId) {
+                app.state.currentExamId = examId;
+                document.getElementById('add-question-form-container').innerHTML = ''; // Clear form
+                this.renderCurrentQuestions();
+                app.ui.showPage('add-questions-page');
+            },
+            showQuestionForm(type) {
+                const container = document.getElementById('add-question-form-container');
+                let formHTML = '';
+                if (type === 'objective') {
+                    formHTML = `
+                        <h4>Add Objective Question</h4>
+                        <form id="objective-q-form">
+                            <div class="form-group"><label>Question</label><textarea id="obj-q-text" required></textarea></div>
+                            <div class="form-group"><label>Option A</label><input type="text" id="obj-q-opt-a" required></div>
+                            <div class="form-group"><label>Option B</label><input type="text" id="obj-q-opt-b" required></div>
+                            <div class="form-group"><label>Option C</label><input type="text" id="obj-q-opt-c" required></div>
+                            <div class="form-group"><label>Option D</label><input type="text" id="obj-q-opt-d" required></div>
+                            <div class="form-group"><label>Correct Answer</label>
+                                <select id="obj-q-correct" required>
+                                    <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Question</button>
+                        </form>
+                    `;
+                } else { // subjective
+                    formHTML = `
+                        <h4>Add Subjective Question</h4>
+                        <form id="subjective-q-form">
+                            <div class="form-group"><label>Question</label><textarea id="subj-q-text" required></textarea></div>
+                            <button type="submit" class="btn btn-primary">Add Question</button>
+                        </form>
+                    `;
+                }
+                container.innerHTML = formHTML;
+
+                if (type === 'objective') {
+                    document.getElementById('objective-q-form').addEventListener('submit', this.addObjectiveQuestion);
+                } else {
+                    document.getElementById('subjective-q-form').addEventListener('submit', this.addSubjectiveQuestion);
+                }
+            },
+            async addObjectiveQuestion(e) {
+                e.preventDefault();
+                const examId = app.state.currentExamId;
+                const exams = app.db.get('exams');
+                const question = {
+                    type: 'objective',
+                    id: `Q${Date.now()}`,
+                    text: document.getElementById('obj-q-text').value,
+                    options: {
+                        A: document.getElementById('obj-q-opt-a').value,
+                        B: document.getElementById('obj-q-opt-b').value,
+                        C: document.getElementById('obj-q-opt-c').value,
+                        D: document.getElementById('obj-q-opt-d').value
+                    },
+                    answer: document.getElementById('obj-q-correct').value
+                };
+                if(!exams[examId].questions) exams[examId].questions = [];
+                exams[examId].questions.push(question);
+                await app.db.set('exams', exams);
+                document.getElementById('objective-q-form').reset();
+                app.teacher.renderCurrentQuestions();
+            },
+            async addSubjectiveQuestion(e) {
+                e.preventDefault();
+                const examId = app.state.currentExamId;
+                const exams = app.db.get('exams');
+                const question = {
+                    type: 'subjective',
+                    id: `Q${Date.now()}`,
+                    text: document.getElementById('subj-q-text').value
+                };
+                if(!exams[examId].questions) exams[examId].questions = [];
+                exams[examId].questions.push(question);
+                await app.db.set('exams', exams);
+                document.getElementById('subjective-q-form').reset();
+                app.teacher.renderCurrentQuestions();
+            },
+            renderCurrentQuestions() {
+                const examId = app.state.currentExamId;
+                const exam = app.db.get('exams')[examId];
+                const questions = exam.questions || [];
+                const container = document.getElementById('current-questions-list');
+                container.innerHTML = `<h4>Current Questions (${questions.length})</h4>`;
+                questions.forEach((q, index) => {
+                    const qEl = document.createElement('div');
+                    qEl.className = 'card';
+                    qEl.innerHTML = `<p><b>Q${index+1} (${q.type}):</b> ${q.text}</p>`;
+                    container.appendChild(qEl);
+                });
+            },
+            finishExamCreation() {
+                app.ui.showToast("Exam created and released!");
+                this.renderExamList();
+            },
+            renderResultsList() {
+                const exams = app.db.get('exams') || {};
+                const container = document.getElementById('results-exam-list-container');
+                container.innerHTML = '';
+                // Filter for exams that are over
+                const completedExams = Object.values(exams)
+                    .filter(e => e.endTime < Date.now() && e.submissions && Object.keys(e.submissions).length > 0)
+                    .sort((a,b) => b.endTime - a.endTime);
+
+                if(completedExams.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No completed exams with submissions found.</p>';
+                } else {
+                    completedExams.forEach(exam => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item card';
+                        item.innerHTML = `
+                            <div>
+                                <p class="item-title">${exam.title}</p>
+                                <p class="item-subtitle">Completed on ${new Date(exam.endTime).toLocaleDateString()}</p>
+                            </div>
+                        `;
+                        item.onclick = () => this.renderExamResults(exam.id);
+                        container.appendChild(item);
+                    });
+                }
+                app.ui.showPage('results-list-page');
+            },
+            renderExamResults(examId) {
+                const exam = app.db.get('exams')[examId];
+                const students = app.db.get('students');
+                document.getElementById('exam-results-title').textContent = `${exam.title} - Results`;
+                const container = document.getElementById('exam-results-container');
+                container.innerHTML = '';
+
+                const results = Object.entries(exam.submissions).map(([studentId, submission]) => {
+                    const student = students[studentId];
+                    const { score, maxScore } = app.utils.calculateScore(exam, submission);
+                    return { student, score, maxScore };
+                }).filter(r => r.student); // Filter out results for deleted students
+                
+                results.sort((a,b) => b.score - a.score);
+
+                results.forEach(({ student, score, maxScore }) => {
+                    const item = document.createElement('div');
+                    item.className = 'list-item card';
+                    item.innerHTML = `
+                        <div>
+                            <p class="item-title">${student.name}</p>
+                            <p class="item-subtitle">Score: ${score} / ${maxScore}</p>
+                        </div>
+                    `;
+                    item.onclick = () => this.renderStudentAnswerSheet(exam.id, student.id);
+                    container.appendChild(item);
+                });
+                app.ui.showPage('exam-results-page');
+            },
+            renderStudentAnswerSheet(examId, studentId) {
+                const exam = app.db.get('exams')[examId];
+                const student = app.db.get('students')[studentId];
+                const submission = exam.submissions[studentId];
+                
+                document.getElementById('answer-sheet-title').textContent = `Answer Sheet: ${student.name}`;
+                const container = document.getElementById('answer-sheet-container');
+                container.innerHTML = '';
+
+                (exam.questions || []).forEach((q, index) => {
+                    const answer = (submission.answers || []).find(a => a.questionId === q.id);
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    let content = `
+                        <p><strong>Q${index + 1}: ${q.text}</strong></p>
+                    `;
+                    if (q.type === 'objective') {
+                        const isCorrect = answer && answer.answer === q.answer;
+                        card.classList.add('answer-feedback', isCorrect ? 'correct' : 'incorrect');
+                        content += `
+                            <p>Your answer: ${answer ? answer.answer : '<em>Not Answered</em>'}</p>
+                            <p class="correct-answer">Correct answer: ${q.answer}</p>
+                        `;
+                    } else { // subjective
+                        content += `<p><strong>Answer:</strong></p><p>${(answer && answer.answer) || '<em>Not answered</em>'}</p>`;
+                    }
+                    card.innerHTML = content;
+                    container.appendChild(card);
+                });
+                
+                app.ui.showPage('student-answer-sheet-page');
+            }
+        },
+
+        // --- STUDENT-SPECIFIC FUNCTIONALITY ---
+        student: {
+            loadDashboard() {
+                const student = app.db.get('students')[app.state.currentUser.id];
+                document.getElementById('student-greeting').textContent = `Hi, ${student.name.split(' ')[0]}`;
+                document.getElementById('student-profile-summary').innerHTML = `
+                    <p><strong>Name:</strong> ${student.name}</p>
+                    <p><strong>Father's Name:</strong> ${student.fatherName}</p>
+                `;
+            },
+            renderFeeStatus() {
+                app.utils.updateAllStudentFees();
+                const student = app.db.get('students')[app.state.currentUser.id];
+                const container = document.getElementById('student-fee-details');
+                container.innerHTML = '';
+                
+                const sortedMonths = student.fees ? Object.keys(student.fees).sort().reverse() : [];
+
+                if (sortedMonths.length === 0) {
+                    container.innerHTML = '<p>No fee records yet.</p>';
+                } else {
+                    sortedMonths.forEach(monthKey => {
+                        const status = student.fees[monthKey];
+                        const item = document.createElement('div');
+                        item.className = 'list-item card';
+                        item.innerHTML = `
+                            <p class="item-title">${app.utils.formatMonthKey(monthKey)}</p>
+                            <span class="fee-status ${status}">${status.toUpperCase()}</span>
+                        `;
+                        container.appendChild(item);
+                    });
+                }
+                app.ui.showPage('student-fee-page');
+            },
+            renderAvailableTests() {
+                const exams = app.db.get('exams') || {};
+                const now = Date.now();
+                const studentId = app.state.currentUser.id;
+                const container = document.getElementById('available-tests-container');
+                container.innerHTML = '';
+
+                const availableExams = Object.values(exams).filter(exam => 
+                    now >= exam.startTime && now <= exam.endTime
+                );
+                
+                if (availableExams.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No active tests at the moment.</p>';
+                } else {
+                    availableExams.forEach(exam => {
+                        const hasSubmitted = exam.submissions && exam.submissions[studentId];
+                        const item = document.createElement('div');
+                        item.className = 'card';
+                        item.innerHTML = `
+                            <p class="item-title">${exam.title}</p>
+                            <p class="item-subtitle">Ends: ${new Date(exam.endTime).toLocaleTimeString()}</p>
+                            <button class="btn btn-primary" ${hasSubmitted ? 'disabled' : ''} onclick="app.student.startTest('${exam.id}')">
+                                ${hasSubmitted ? 'Attempted' : 'Start Test'}
+                            </button>
+                        `;
+                        container.appendChild(item);
+                    });
+                }
+                app.ui.showPage('available-tests-page');
+            },
+            startTest(examId) {
+                const exam = app.db.get('exams')[examId];
+                document.getElementById('take-exam-title').textContent = exam.title;
+                const form = document.getElementById('exam-paper-form');
+                form.dataset.examId = examId;
+                form.innerHTML = ''; // Clear previous form
+
+                (exam.questions || []).forEach((q, index) => {
+                    const qBlock = document.createElement('div');
+                    qBlock.className = 'question-block card';
+                    let qHTML = `<p><b>Q${index + 1}:</b> ${q.text}</p>`;
+                    if (q.type === 'objective') {
+                        qHTML += `<div class="objective-options" id="q-options-${q.id}">`;
+                        for(const [opt, text] of Object.entries(q.options)) {
+                            qHTML += `
+                                <label>
+                                    <input type="radio" name="q_${q.id}" value="${opt}" required>
+                                    <span>${text}</span>
+                                </label>
+                            `;
+                        }
+                        qHTML += `</div>`;
+                    } else { // subjective
+                        qHTML += `<div class="form-group">
+                                    <textarea name="q_${q.id}" placeholder="Type your answer here..." required></textarea>
+                                  </div>`;
+                    }
+                    qBlock.innerHTML = qHTML;
+                    form.appendChild(qBlock);
+                });
+                
+                const submitBtn = document.createElement('button');
+                submitBtn.type = 'submit';
+                submitBtn.className = 'btn btn-primary';
+                submitBtn.textContent = 'Submit Exam';
+                form.appendChild(submitBtn);
+
+                form.querySelectorAll('.objective-options input[type="radio"]').forEach(radio => {
+                    radio.addEventListener('click', (e) => {
+                        const optionsContainer = e.target.closest('.objective-options');
+                        optionsContainer.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = true);
+                        optionsContainer.classList.add('disabled');
+                    });
+                });
+                
+                app.utils.startTimer(exam.endTime, document.getElementById('exam-timer'), () => {
+                    app.ui.showToast("Time's up! Submitting your exam automatically.");
+                    this.submitExam();
+                });
+
+                app.ui.showPage('take-exam-page');
+            },
+            async submitExam(e) {
+                if(e) e.preventDefault();
+                
+                const form = document.getElementById('exam-paper-form');
+                const examId = form.dataset.examId;
+                if (!examId) return;
+
+                const exams = app.db.get('exams');
+                const exam = exams[examId];
+                const studentId = app.state.currentUser.id;
+                
+                if (exam.submissions && exam.submissions[studentId]) {
+                    app.ui.showToast("You have already submitted this exam.");
+                    return;
+                }
+
+                const formData = new FormData(form);
+                const submission = {
+                    studentId,
+                    submittedAt: Date.now(),
+                    answers: []
+                };
+
+                for (const [key, value] of formData.entries()) {
+                    const questionId = key.replace('q_', '');
+                    submission.answers.push({ questionId, answer: value });
+                }
+                
+                if (!exam.submissions) exam.submissions = {};
+                exam.submissions[studentId] = submission;
+                await app.db.set('exams', exams);
+                app.utils.stopTimer();
+                
+                app.ui.showToast("Exam submitted successfully!");
+                app.ui.showPage('student-dashboard');
+            }
+        },
+
+        // --- CHAT SYSTEM ---
+        chat: {
+            renderChatList(userType) {
+                const container = document.getElementById('chat-list-container');
+                container.innerHTML = '';
+                const chats = app.db.get('chats') || {};
+                document.getElementById('chat-list-title').textContent = (userType === 'teacher') ? "Chats with Students" : "Chat with Teacher";
+                
+                if (userType === 'teacher') {
+                    const students = app.db.get('students') || {};
+                    Object.values(students).forEach(student => {
+                        const chatId = `teacher-${student.id}`;
+                        const chatMessages = chats[chatId] || [];
+                        const lastMessage = chatMessages[chatMessages.length - 1];
+                        const unreadCount = chatMessages.filter(m => m.sender === student.id && !m.isRead).length;
+
+                        const item = document.createElement('div');
+                        item.className = 'chat-list-item list-item card';
+                        item.innerHTML = `
+                            <div class="list-item-content">
+                                <p class="item-title">${student.name}</p>
+                                <p class="item-subtitle">${lastMessage ? (lastMessage.type === 'image' ? 'Image' : lastMessage.text) : 'No messages yet'}</p>
+                            </div>
+                            ${unreadCount > 0 ? '<div class="unread-dot"></div>' : ''}
+                        `;
+                        item.onclick = () => this.openChatWindow(chatId, student.name);
+                        container.appendChild(item);
+                    });
+                } else { // Student view
+                    const studentId = app.state.currentUser.id;
+                    const chatId = `teacher-${studentId}`;
+                    const chatMessages = chats[chatId] || [];
+                    const lastMessage = chatMessages[chatMessages.length - 1];
+                    const unreadCount = chatMessages.filter(m => m.sender === 'teacher' && !m.isRead).length;
+
+                    const item = document.createElement('div');
+                    item.className = 'chat-list-item list-item card';
+                    item.innerHTML = `
+                        <div class="list-item-content">
+                            <p class="item-title">Teacher</p>
+                            <p class="item-subtitle">${lastMessage ? (lastMessage.sender === 'teacher' ? '' : 'You: ') + (lastMessage.type === 'image' ? 'Image' : lastMessage.text) : 'Start a conversation'}</p>
+                        </div>
+                        ${unreadCount > 0 ? '<div class="unread-dot"></div>' : ''}
+                    `;
+                    item.onclick = () => this.openChatWindow(chatId, 'Teacher');
+                    container.appendChild(item);
+                }
+                app.ui.showPage('chat-list-page');
+            },
+            openChatWindow(chatId, recipientName) {
+                app.state.currentChatId = chatId;
+                document.getElementById('chat-window-title').textContent = recipientName;
+                
+                this.attachListener(chatId); // Attach realtime listener
+                this.renderChatInput();
+                
+                app.ui.showPage('chat-window');
+            },
+            attachListener(chatId) {
+                if (app.state.activeChatListener) this.detachListener(); // Detach any old listener
+                
+                const chatRef = app.db.database.ref(`chats/${chatId}`);
+                app.state.activeChatListener = chatRef.on('value', (snapshot) => {
+                    const messages = snapshot.val() || [];
+                    const chats = app.db.get('chats');
+                    if(!chats) chats = {};
+                    chats[chatId] = Object.values(messages); // Firebase might return an object
+                    app.db.data.chats = chats; // Update local cache without triggering a write
+                    this.renderMessages(Object.values(messages));
+
+                    // Mark messages as read
+                    const currentUserType = app.state.currentUser.type;
+                    const senderToMark = currentUserType === 'teacher' ? 'student' : 'teacher';
+                    let needsUpdate = false;
+                    const updatedMessages = Object.entries(messages).map(([key, msg]) => {
+                        if (msg.sender.startsWith(senderToMark.slice(0,1)) && !msg.isRead) {
+                            msg.isRead = true;
+                            needsUpdate = true;
+                        }
+                        return {[key]: msg};
+                    });
+                    
+                    if(needsUpdate) {
+                        const finalMessages = Object.assign({}, ...updatedMessages);
+                        app.db.database.ref(`chats/${chatId}`).set(finalMessages);
+                    }
+                });
+            },
+            detachListener() {
+                const chatRef = app.db.database.ref(`chats/${app.state.currentChatId}`);
+                chatRef.off('value', app.state.activeChatListener);
+                app.state.activeChatListener = null;
+                console.log("Detached Firebase listener for chat:", app.state.currentChatId);
+            },
+            renderMessages(messages) {
+                const container = document.getElementById('message-container');
+                container.innerHTML = '';
+                
+                (messages || []).forEach(msg => {
+                    const bubble = document.createElement('div');
+                    const isSent = (app.state.currentUser.type === 'teacher' && msg.sender === 'teacher') || 
+                                   (app.state.currentUser.type === 'student' && msg.sender === app.state.currentUser.id);
+                    bubble.className = `chat-bubble ${isSent ? 'sent' : 'received'}`;
+                    
+                    let content = msg.text;
+                    if(msg.type === 'image') {
+                        content += `<br><img src="${msg.url}" alt="Image">`;
+                    }
+                    bubble.innerHTML = content;
+                    container.appendChild(bubble);
+                });
+            },
+            renderChatInput() {
+                const container = document.getElementById('chat-input-area');
+                const userType = app.state.currentUser.type;
+                container.innerHTML = `
+                    <input type="text" id="chat-message-input" placeholder="Type a message...">
+                    ${userType === 'teacher' ? '<button id="send-img-btn">🖼️</button>' : ''}
+                    <button id="send-msg-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                `;
+
+                document.getElementById('send-msg-btn').onclick = () => this.sendMessage('text');
+                document.getElementById('chat-message-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') this.sendMessage('text'); });
+                if (userType === 'teacher') { document.getElementById('send-img-btn').onclick = () => this.sendMessage('image'); }
+            },
+            sendMessage(type) {
+                const chatId = app.state.currentChatId;
+                const input = document.getElementById('chat-message-input');
+                let message = {};
+
+                if (type === 'text') {
+                    if (!input.value.trim()) return;
+                    message = { text: input.value.trim(), type: 'text' };
+                    input.value = '';
+                } else if (type === 'image') {
+                    const url = prompt("Enter image URL:");
+                    if (!url) return;
+                    message = { text: 'Image', type: 'image', url: url };
+                }
+                
+                message.sender = app.state.currentUser.type === 'teacher' ? 'teacher' : app.state.currentUser.id;
+                message.timestamp = Date.now();
+                message.isRead = false;
+                
+                // Push new message to Firebase
+                app.db.database.ref(`chats/${chatId}`).push(message);
+            }
+        },
+
+        // --- UTILITY FUNCTIONS ---
+        utils: {
+            timerInterval: null,
+            generatePassword: (length = 6) => {
+                return Math.random().toString(36).substring(2, 2 + length);
+            },
+            getCurrentMonthKey: () => {
+                const d = new Date();
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            },
+            formatMonthKey: (key) => {
+                const [year, month] = key.split('-');
+                return new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+            },
+            async updateAllStudentFees() {
+                const students = app.db.get('students') || {};
+                const currentMonthKey = this.getCurrentMonthKey();
+                let changed = false;
+                Object.values(students).forEach(s => {
+                    if (!s.fees) s.fees = {};
+                    if (!s.fees[currentMonthKey]) {
+                        s.fees[currentMonthKey] = 'due';
+                        changed = true;
+                    }
+                });
+                if (changed) {
+                    await app.db.set('students', students);
+                }
+            },
+            async autoCleanExams() {
+                const exams = app.db.get('exams') || {};
+                const fiveDaysAgo = Date.now() - (5 * 24 * 60 * 60 * 1000);
+                let changed = false;
+                Object.keys(exams).forEach(examId => {
+                    if((exams[examId].createdAt || 0) < fiveDaysAgo) {
+                        delete exams[examId];
+                        changed = true;
+                    }
+                });
+                if (changed) {
+                    await app.db.set('exams', exams);
+                    console.log("Auto-cleaned old exam data from Firebase.");
+                }
+            },
+            startTimer(endTime, displayElement, onEnd) {
+                this.stopTimer();
+                this.timerInterval = setInterval(() => {
+                    const distance = endTime - Date.now();
+                    if (distance < 0) {
+                        this.stopTimer();
+                        displayElement.textContent = "00:00";
+                        if(onEnd) onEnd();
+                        return;
+                    }
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    displayElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }, 1000);
+            },
+            stopTimer() {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            },
+            calculateScore(exam, submission) {
+                let score = 0;
+                let maxScore = 0;
+                (exam.questions || []).forEach(q => {
+                    if (q.type === 'objective') {
+                        maxScore += 1;
+                        const studentAnswer = (submission.answers || []).find(a => a.questionId === q.id);
+                        if (studentAnswer && studentAnswer.answer === q.answer) {
+                            score += 1;
+                        }
+                    }
+                });
+                return { score, maxScore };
+            }
+        },
+    };
+
+    // --- APP START ---
+    app.init();
+});
+</script>
+
+</body>
+                          </html>
